@@ -450,7 +450,7 @@
 <body>
 
 <header>
-  <div class="logo">Drag Me <span style="color:white">to</span><span> Chicago</span></div>
+  <div class="logo">Drag Me<span> to Chicago</span></div>
   <nav>
     <button class="active" onclick="switchView('list', this)">List</button>
     <button onclick="switchView('calendar', this)">Calendar</button>
@@ -501,7 +501,11 @@
   // ── FETCH DATA ──────────────────────────────────────────────
   async function fetchData() {
     try {
-      const res = await fetch(API_URL);
+      const res = await fetch(API_URL, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        mode: 'cors'
+      });
       const data = await res.json();
       allEvents = data.sort((a, b) => new Date(a.event_date) - new Date(b.event_date));
       renderList();
@@ -676,7 +680,10 @@
       const dayEvents = byDay[d] || [];
       html += `<div class="cal-cell${isToday ? ' today' : ''}">
         <div class="cal-date">${isToday ? `<span class="cal-today-dot">${d}</span>` : d}</div>
-        ${dayEvents.map(ev => `<div class="cal-event" title="${getEventName(ev)}" onclick="goToEvent('${ev.event_date}','${ev.Venue}')">${getEventName(ev)}</div>`).join('')}
+        ${dayEvents.map(ev => {
+          const idx = allEvents.indexOf(ev);
+          return `<div class="cal-event" title="${getEventName(ev)}" onclick="goToEventByIndex(${idx})">${getEventName(ev)}</div>`;
+        }).join('')}
       </div>`;
     }
 
@@ -688,6 +695,20 @@
     if (currentMonth > 11) { currentMonth = 0; currentYear++; }
     if (currentMonth < 0) { currentMonth = 11; currentYear--; }
     renderCalendar();
+  }
+
+  function goToEventByIndex(idx) {
+    switchView('list', document.querySelector('nav button'));
+    document.getElementById('filter-time').value = 'all';
+    document.getElementById('search').value = '';
+    renderList();
+    setTimeout(() => {
+      const cards = document.querySelectorAll('.event-card');
+      if (cards[idx]) {
+        cards[idx].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        cards[idx].classList.add('open');
+      }
+    }, 100);
   }
 
   function goToEvent(dateStr, venue) {
@@ -721,6 +742,7 @@
       const performers = getPerformers(ev);
       const price = formatPrice(ev.Ticket_Price);
       const d = formatDate(ev.event_date);
+      const idx = allEvents.indexOf(ev);
 
       const popup = `
         <div class="map-popup">
@@ -729,7 +751,8 @@
           <p><strong>${ev.Venue}</strong> &bull; ${ev.Address_Short || ''}</p>
           ${performers.length ? `<p style="margin-top:.4rem">${performers.map(p=>p.name).join(', ')}</p>` : ''}
           ${price ? `<p style="color:#EF002B;font-weight:500">${price}</p>` : ''}
-          ${ev.Ticket_Link ? `<a href="${ev.Ticket_Link}" target="_blank">Get Tickets →</a>` : ''}
+          ${ev.Ticket_Link ? `<a href="${ev.Ticket_Link}" target="_blank">Get Tickets →</a><br/>` : ''}
+          <a href="#" onclick="goToEventByIndex(${idx}); return false;" style="color:#41B6E6;font-size:.82rem">View full details →</a>
         </div>`;
 
       L.marker([ev.Latitude, ev.Longitude], { icon: primaryIcon })
